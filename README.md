@@ -24,7 +24,7 @@ npm run dev                          # painel em http://localhost:5173
 
 Produção: `cd web && npm run build`, depois `cd backend && npm run build && npm start`. A API serve o painel de `web/dist` no mesmo endereço.
 
-Testes: `cd backend && npm test` (engines) e `npm run test:e2e` (fluxo completo no banco do `.env` — use um banco de teste).
+Testes: `cd backend && npm test` (19 testes das regras) e `npm run test:e2e` (38 testes: fluxo completo + auditoria de todas as funções e da régua, no banco do `.env` — use um banco de teste).
 
 ## O que tem
 
@@ -35,10 +35,11 @@ Testes: `cd backend && npm test` (engines) e `npm run test:e2e` (fluxo completo 
 | **Quitação total** | Principal em aberto + juros e multa vencidos; todas as parcelas abertas são apagadas (canceladas) e o empréstimo fecha. |
 | **Approval Lock** | “Só juros” e “quitação” ficam `AGUARDANDO_APROVACAO`. Só o Dono aprova, com biometria do aparelho (WebAuthn) ou senha. Quem lançou nunca aprova o próprio lançamento. |
 | **Carteira / equipe** | Dono faz aporte e `REPASSE_CAPITAL` (ex.: R$ 10.000) ao funcionário → funcionário empresta → cliente paga o funcionário → principal volta ao capital do funcionário (revolving) → juros e multa: 30% comissão, 70% “a repassar” → funcionário faz `REPASSE_RECEBIMENTO` ao Dono. Todo movimento cai no `CashLedger`. |
-| **Score** | 0–10 automático (recalcula todo dia 06:00 e a cada pagamento). 8–10 BOM ⭐ (margem R$ 1.500, taxa 8%), 5–7 REGULAR, 2–4 RUIM ⚠️ (margem R$ 500, novo empréstimo só com liberação do Dono), 0–1 ou 180+ dias PERDA 💀 (bloqueado, só o Super Admin desbloqueia). Cada faixa mostra as estratégias de cobrança (emergência, fiador, visita, desconto 10%, parcelamento, carta PDF, negativação, acordo 30%, jurídico). |
+| **Score** | 0–10 automático; cliente novo começa REGULAR e vira BOM ao pagar em dia (recalcula todo dia 06:00 e a cada pagamento). 8–10 BOM ⭐ (margem R$ 1.500, taxa 8%), 5–7 REGULAR, 2–4 RUIM ⚠️ (margem R$ 500, novo empréstimo só com liberação do Dono), 0–1 ou 180+ dias PERDA 💀 (bloqueado, só o Super Admin desbloqueia). Cada faixa mostra as estratégias de cobrança (emergência, fiador, visita, desconto 10%, parcelamento, carta PDF, negativação, acordo 30%, jurídico). |
 | **Ficha do cliente** | 5 abas: Dados pessoais · Contato/Endereço (ViaCEP) · Financeiro/PIX · Vínculos (emergência, fiador linkado a outro cliente, indicação) · Documentos/Recibos (inclui o comprovante enviado pelo cliente). Inputs brancos `#FFFFFF` com texto `#0F172A`. |
 | **Importador WhatsApp** | Cola a mensagem: linha `NOME;CPF;RG;NASCIMENTO;…` (18 campos) ou bloco `Nome: … CPF: …`. Mostra a prévia “14 de 18 campos” e o que falta antes de preencher. |
-| **Mensagens** | Régua D-2, D-0, D+1, D+3, D+7 (+ fiador), editáveis. Envia pela Evolution API (conexão por QR code) ou gera links `wa.me` quando ela não está configurada. Envio automático 09:00 opcional. |
+| **Mensagens** | Régua D-2, D-0, D+1, D+3, D+7 (+ fiador) e, depois do D+7, lembrete toda semana (D+14, D+21…, também ao fiador) até pagar. Textos editáveis. Cada funcionário vê só a fila dos próprios empréstimos. Envia pela Evolution API (conexão por QR code) ou gera links `wa.me` quando ela não está configurada. Envio automático 09:00 opcional. |
+| **Alertas para você** | Faixa no Painel e número vermelho no menu Cobrança com as mensagens do dia; número em Aprovações; resumo diário às 08:30 por e-mail (atrasos, vencimentos do dia, aprovações e fila). |
 | **Documentos** | Armazenamento privado; cada abertura gera link assinado (HMAC) que vale 5 minutos. |
 | **Atalhos** | `Ctrl+N` novo empréstimo · `Ctrl+E` baixa o Excel completo. |
 

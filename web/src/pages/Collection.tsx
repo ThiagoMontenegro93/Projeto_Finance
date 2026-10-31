@@ -3,7 +3,8 @@ import { isOwner, useMe } from '../App';
 import { api, date } from '../api';
 import { Alert, Modal, toast, useAsync } from '../components/ui';
 
-const LABEL: Record<string, string> = { D_MENOS_2: 'D-2', D_0: 'D-0', D_MAIS_1: 'D+1', D_MAIS_3: 'D+3', D_MAIS_7: 'D+7 + fiador' };
+const LABELS: Record<string, string> = { D_MENOS_2: 'D-2', D_0: 'D-0', D_MAIS_1: 'D+1', D_MAIS_3: 'D+3', D_MAIS_7: 'D+7 + fiador', ATRASO_SEMANAL: 'Semanal após D+7' };
+const LABEL = new Proxy(LABELS, { get: (t, k: string) => t[k] ?? (k.startsWith('ATRASO_SEMANAL_D') ? `D+${k.slice(16)} (semanal)` : k) });
 
 export default function Collection() {
   const me = useMe();
@@ -30,15 +31,15 @@ export default function Collection() {
           <button className="primary" onClick={sendAll} disabled={!queue.data?.some((q) => !q.alreadySent)}>{connected ? 'Enviar fila do dia' : 'Registrar fila do dia'}</button>
         </div>
       </div>
-      <h2>Fila de hoje (D-2, D-0, D+1, D+3, D+7)</h2>
+      <h2>Fila de hoje (D-2, D-0, D+1, D+3, D+7 e, depois, toda semana até pagar)</h2>
       <div className="table-wrap" style={{ marginBottom: 18 }}>
         <table className="dense">
           <thead><tr><th>Régua</th><th>Para</th><th>Cliente</th><th>Mensagem</th><th></th></tr></thead>
           <tbody>{queue.data?.map((q) => (
             <tr key={q.installmentId + q.templateCode + q.toPhone}>
-              <td><b>{LABEL[q.templateCode]}</b></td><td>{q.recipient === 'FIADOR' ? 'Fiador' : 'Cliente'} · {q.toPhone}</td><td>{q.clientName}</td>
+              <td><b>{LABEL[q.templateCode]}</b></td><td>{q.recipient === 'FIADOR' ? 'Fiador' : 'Cliente'} · {q.toPhone || '—'}</td><td>{q.clientName}</td>
               <td style={{ whiteSpace: 'normal', maxWidth: 480 }}>{q.body}</td>
-              <td><a className="btn" href={q.waLink} target="_blank" rel="noreferrer">{q.alreadySent ? 'Enviado ✓' : 'Abrir no WhatsApp'}</a></td>
+              <td>{q.missingPhone ? <span className="badge st-ATRASO">sem WhatsApp cadastrado</span> : <a className="btn" href={q.waLink} target="_blank" rel="noreferrer">{q.alreadySent ? 'Registrado ✓ · abrir' : 'Abrir no WhatsApp'}</a>}</td>
             </tr>
           ))}</tbody>
         </table>

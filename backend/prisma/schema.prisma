@@ -178,8 +178,8 @@ model Client {
   referrals         Client[] @relation("Referral")
 
   // Score
-  score        Int         @default(10)
-  scoreStatus  ScoreStatus @default(BOM)
+  score        Int         @default(7)
+  scoreStatus  ScoreStatus @default(REGULAR)
   blocked      Boolean     @default(false)
   blockedReason String?
   notes        String?

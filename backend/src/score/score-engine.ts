@@ -24,6 +24,7 @@ const dayDiff = (a: Date, b: Date) =>
   );
 
 export const LOSS_DAYS = 180;
+export const NEW_CLIENT_SCORE = 7;
 
 export function penaltyFor(days: number): number {
   if (days <= 0) return 0;
@@ -51,6 +52,9 @@ export function computeScore(history: InstallmentHistory[], today: Date = new Da
   // bônus de fidelidade: a cada 5 parcelas pagas em dia recupera 1 ponto
   score += Math.floor(onTime / 5);
   score = Math.max(0, Math.min(10, Math.round(score)));
+  // Cliente novo (nenhuma parcela paga ainda) começa REGULAR: margem e taxa de BOM são prêmio por pagar
+  const paidAny = history.some((h) => h.status === 'PAGO' || h.status === 'JUROS_PAGO');
+  if (!paidAny) score = Math.min(score, NEW_CLIENT_SCORE);
   if (maxDaysLate >= LOSS_DAYS) score = 0;
   return { score, status: classify(score), maxDaysLate };
 }

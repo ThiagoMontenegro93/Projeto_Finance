@@ -24,11 +24,15 @@ const ROLE: Record<Me['role'], string> = { SUPER_ADMIN: 'Super Admin', DONO: 'Do
 function Shell() {
   const [me, setMe] = useState<Me | null>(null);
   const [pending, setPending] = useState(0);
+  const [toCollect, setToCollect] = useState(0);
   const nav = useNavigate();
 
   useEffect(() => {
     api<Me>('/auth/me').then(setMe).catch(() => nav('/login'));
-    const load = () => api<unknown[]>('/payments/pending').then((p) => setPending(p.length)).catch(() => undefined);
+    const load = () => {
+      api<unknown[]>('/payments/pending').then((p) => setPending(p.length)).catch(() => undefined);
+      api<{ alreadySent: boolean }[]>('/messages/queue').then((q) => setToCollect(q.filter((m) => !m.alreadySent).length)).catch(() => undefined);
+    };
     load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
@@ -62,7 +66,7 @@ function Shell() {
             <NavLink to="/clientes">Clientes</NavLink>
             <NavLink to="/emprestimos">Empréstimos</NavLink>
             <NavLink to="/aprovacoes">Aprovações {pending > 0 && <span className="badge count">{pending}</span>}</NavLink>
-            <NavLink to="/cobranca">Cobrança</NavLink>
+            <NavLink to="/cobranca">Cobrança {toCollect > 0 && <span className="badge count" title="Mensagens da régua para enviar hoje">{toCollect}</span>}</NavLink>
             <NavLink to="/equipe">{owner ? 'Equipe e carteira' : 'Minha carteira'}</NavLink>
             {owner && <NavLink to="/dados">Exportar / Importar</NavLink>}
             {owner && <NavLink to="/configuracoes">Configurações</NavLink>}

@@ -18,6 +18,10 @@ describe('Score', () => {
       ], d('2026-10-30'));
     expect(r.status).toBe('RUIM');
   });
+  it('cliente novo sem nada pago começa REGULAR (7)', () => {
+    expect(computeScore([], d('2026-10-30'))).toMatchObject({ score: 7, status: 'REGULAR' });
+    expect(computeScore([{ dueDate: d('2026-11-30'), status: 'PENDENTE' }], d('2026-10-30'))).toMatchObject({ score: 7, status: 'REGULAR' });
+  });
   it('180 dias de atraso = PERDA bloqueado', () => {
     const r = computeScore([{ dueDate: d('2026-04-01'), status: 'PENDENTE' }], d('2026-10-30'));
     expect(r).toMatchObject({ score: 0, status: 'PERDA' });

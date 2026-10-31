@@ -22,7 +22,7 @@ export default function Settings() {
             <input type="text" value={s.backup_email} onChange={up('backup_email')} placeholder="voce@exemplo.com" />
           </Field>
         </div>
-        <p className="muted" style={{ marginBottom: 0 }}>O envio usa o servidor SMTP definido no arquivo .env do backend (SMTP_HOST, SMTP_USER…).</p>
+        <p className="muted" style={{ marginBottom: 0 }}>Esse e-mail também recebe todo dia às 08:30 o resumo de cobrança (atrasos, vencimentos do dia, aprovações pendentes). O envio usa o servidor SMTP definido no arquivo .env do backend (SMTP_HOST, SMTP_USER…).</p>
       </div>
       <div className="panel">
         <h2>Padrões</h2>

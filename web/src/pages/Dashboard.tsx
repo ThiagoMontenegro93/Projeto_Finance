@@ -4,6 +4,8 @@ import { ScoreBadge, useAsync } from '../components/ui';
 
 export default function Dashboard() {
   const { data, error } = useAsync(() => api('/dashboard'));
+  const queue = useAsync(() => api<any[]>('/messages/queue'));
+  const toSend = queue.data?.filter((q) => !q.alreadySent).length ?? 0;
   if (error) return <div className="alert error">{error}</div>;
   if (!data) return <div className="empty">Carregando…</div>;
   const c = data.cards;
@@ -14,6 +16,12 @@ export default function Dashboard() {
         <h1>Painel</h1>
         <div className="actions"><Link className="btn primary" to="/emprestimos?novo=1">Novo empréstimo <span className="kbd">Ctrl+N</span></Link></div>
       </div>
+      {toSend > 0 && (
+        <div className="alert warn row" style={{ justifyContent: 'space-between' }}>
+          <span>🔔 <b>{toSend} cobrança(s) da régua para enviar hoje</b> (D-2, D-0, D+1, D+3, D+7 e lembretes semanais).</span>
+          <Link className="btn" to="/cobranca">Abrir cobrança</Link>
+        </div>
+      )}
       <div className="cards">
         <div className="card"><div className="label">Capital disponível</div><div className="value">{brl(c.capitalDisponivel)}</div><div className="sub">pronto para emprestar</div></div>
         <div className="card"><div className="label">Capital na rua</div><div className="value">{brl(c.capitalEmprestado)}</div><div className="sub">principal emprestado</div></div>

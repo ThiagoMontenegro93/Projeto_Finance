@@ -1,11 +1,16 @@
 import { Body, Controller, Get, Injectable, Logger, Module, OnModuleInit, Post, Put, Query } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { Roles } from '../common/auth';
+import { Prisma } from '@prisma/client';
+import * as nodemailer from 'nodemailer';
+import { AuthUser, CurrentUser, Roles } from '../common/auth';
 import { num } from '../common/money';
 import { addDays, currentValue, daysLate, toDay } from '../loan-engine/loan-engine';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.module';
-import { brDate, brl, DEFAULT_TEMPLATES, GUARANTOR_BODY, render, toIntlPhone, waMeLink } from './templates';
+import { brDate, brl, DEFAULT_TEMPLATES, GUARANTOR_BODY, render, toIntlPhone, waMeLink, WEEKLY_CODE } from './templates';
+
+export const loanScope = (u: AuthUser): Prisma.LoanWhereInput =>
+  u.role === 'FUNCIONARIO' ? { lenderUserId: u.id } : u.role === 'DONO' ? { funderUserId: u.id } : {};
 
 /** Cliente da Evolution API (WhatsApp via QR code). Sem configuração => fallback wa.me. */
 @Injectable()
@@ -65,6 +70,7 @@ export interface QueueItem {
   body: string;
   waLink: string;
   alreadySent: boolean;
+  missingPhone?: boolean;
 }
 
 @Injectable()
@@ -78,20 +84,31 @@ export class MessagesService implements OnModuleInit {
     }
   }
 
-  /** Fila do dia: parcelas que caem em D-2, D-0, D+1, D+3 e D+7 (com fiador). */
-  async queue(today = new Date()): Promise<QueueItem[]> {
+  /**
+   * Fila do dia: parcelas que caem em D-2, D-0, D+1, D+3, D+7 (com fiador) e, depois disso,
+   * lembrete semanal (D+14, D+21, …) até pagar. `scope` limita aos empréstimos do usuário.
+   */
+  async queue(today = new Date(), scope: Prisma.LoanWhereInput = {}): Promise<QueueItem[]> {
     const templates = await this.prisma.messageTemplate.findMany({ where: { active: true } });
     const pix = await this.settings.get('pix_key');
+    const day = toDay(today);
     const items: QueueItem[] = [];
     for (const t of templates) {
-      const due = addDays(toDay(today), -t.offsetDays);
+      const weekly = t.code === WEEKLY_CODE;
+      const due = addDays(day, -t.offsetDays);
       const insts = await this.prisma.installment.findMany({
-        where: { status: 'PENDENTE', dueDate: { gte: due, lt: addDays(due, 1) }, loan: { status: 'ATIVO' } },
+        where: {
+          status: 'PENDENTE',
+          dueDate: weekly ? { lt: addDays(due, 1) } : { gte: due, lt: addDays(due, 1) },
+          loan: { ...scope, status: 'ATIVO' },
+        },
         include: { loan: { include: { client: { include: { guarantor: true } } } } },
       });
       for (const i of insts) {
-        const c = i.loan.client;
         const days = daysLate(i.dueDate, today);
+        if (weekly && days % 7 !== 0) continue;
+        const logCode = weekly ? `${t.code}_D${days}` : t.code;
+        const c = i.loan.client;
         const vars = {
           nome: c.name.split(' ')[0],
           parcela: `${i.number}/${i.loan.installmentsCount}`,
@@ -109,13 +126,17 @@ export class MessagesService implements OnModuleInit {
           recipients.push({ phone: c.guarantor.whatsapp || c.guarantor.phone, who: 'FIADOR', body: render(GUARANTOR_BODY, { ...vars, fiador: c.guarantor.name.split(' ')[0], nome: c.name }) });
         }
         for (const r of recipients) {
-          if (!r.phone) continue;
+          if (!r.phone) {
+            items.push({ templateCode: logCode, clientId: c.id, clientName: c.name, installmentId: i.id, toPhone: '', recipient: r.who, body: r.body, waLink: '', alreadySent: false, missingPhone: true });
+            continue;
+          }
           const sent = await this.prisma.messageLog.findUnique({
-            where: { installmentId_templateCode_toPhone: { installmentId: i.id, templateCode: t.code, toPhone: r.phone } },
+            where: { installmentId_templateCode_toPhone: { installmentId: i.id, templateCode: logCode, toPhone: r.phone } },
           });
           items.push({
-            templateCode: t.code, clientId: c.id, clientName: c.name, installmentId: i.id, toPhone: r.phone,
-            recipient: r.who, body: r.body, waLink: waMeLink(r.phone, r.body), alreadySent: !!sent && sent.status === 'ENVIADO',
+            templateCode: logCode, clientId: c.id, clientName: c.name, installmentId: i.id, toPhone: r.phone,
+            recipient: r.who, body: r.body, waLink: waMeLink(r.phone, r.body),
+            alreadySent: !!sent && sent.status !== 'FALHA', // ENVIADO (Evolution) ou LINK_GERADO (wa.me registrado)
           });
         }
       }
@@ -123,9 +144,45 @@ export class MessagesService implements OnModuleInit {
     return items;
   }
 
+  /** Resumo diário para o Dono por e-mail (08:30): atrasos, vencimentos de hoje, aprovações e fila. */
+  @Cron('30 8 * * *', { timeZone: 'America/Sao_Paulo' })
+  async ownerSummary(today = new Date()) {
+    const to = (await this.settings.get('backup_email')) || '';
+    const day = toDay(today);
+    const overdue = await this.prisma.installment.findMany({
+      where: { status: 'PENDENTE', dueDate: { lt: day }, loan: { status: 'ATIVO' } },
+      include: { loan: { select: { lateFeeDailyRate: true, client: { select: { name: true } } } } },
+      orderBy: { dueDate: 'asc' },
+    });
+    const dueToday = await this.prisma.installment.count({ where: { status: 'PENDENTE', dueDate: { gte: day, lt: addDays(day, 1) } } });
+    const approvals = await this.prisma.payment.count({ where: { status: 'AGUARDANDO_APROVACAO' } });
+    const queue = (await this.queue(today)).filter((q) => !q.alreadySent);
+    const total = overdue.reduce((s, i) => s + currentValue(num(i.amount), num(i.loan.lateFeeDailyRate), daysLate(i.dueDate, today)), 0);
+    const lines = [
+      `Resumo de cobrança — ${brDate(day)}`,
+      '',
+      `Em atraso: ${overdue.length} parcela(s), ${brl(total)} com multa`,
+      `Vencem hoje: ${dueToday}`,
+      `Aguardando sua aprovação: ${approvals}`,
+      `Mensagens da régua para enviar hoje: ${queue.length}`,
+      '',
+      ...overdue.slice(0, 30).map((i) => `• ${i.loan.client.name} — ${daysLate(i.dueDate, today)} dias — ${brl(num(i.amount))}`),
+    ];
+    const text = lines.join('\n');
+    if (to && process.env.SMTP_HOST) {
+      const t = nodemailer.createTransport({
+        host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT ?? 587), secure: process.env.SMTP_SECURE === 'true',
+        auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+      });
+      await t.sendMail({ from: process.env.SMTP_FROM ?? process.env.SMTP_USER, to, subject: `LendControl — ${overdue.length} em atraso, ${queue.length} cobranças hoje`, text })
+        .catch((e) => this.log.warn(`Resumo diário não enviado: ${e.message}`));
+    }
+    return { text, overdue: overdue.length, dueToday, approvals, queue: queue.length, emailedTo: to && process.env.SMTP_HOST ? to : null };
+  }
+
   /** Envia a fila: Evolution API se conectada, senão registra o link wa.me para envio manual. */
-  async sendQueue(today = new Date()) {
-    const q = (await this.queue(today)).filter((i) => !i.alreadySent);
+  async sendQueue(today = new Date(), scope: Prisma.LoanWhereInput = {}) {
+    const q = (await this.queue(today, scope)).filter((i) => !i.alreadySent && !i.missingPhone);
     const evo = (await this.evo.status()).state === 'open';
     const results = [];
     for (const item of q) {
@@ -163,13 +220,19 @@ export class MessagesController {
   constructor(private svc: MessagesService, private evo: EvolutionService, private prisma: PrismaService) {}
 
   @Get('queue')
-  queue(@Query('date') date?: string) {
-    return this.svc.queue(date ? new Date(date) : new Date());
+  queue(@CurrentUser() u: AuthUser, @Query('date') date?: string) {
+    return this.svc.queue(date ? new Date(date) : new Date(), loanScope(u));
   }
 
   @Post('send')
-  send() {
-    return this.svc.sendQueue();
+  send(@CurrentUser() u: AuthUser) {
+    return this.svc.sendQueue(new Date(), loanScope(u));
+  }
+
+  @Get('summary')
+  @Roles('DONO')
+  summary() {
+    return this.svc.ownerSummary();
   }
 
   @Get('templates')

@@ -38,7 +38,17 @@ export const DEFAULT_TEMPLATES: TemplateDef[] = [
     notifyGuarantor: true,
     body: '{nome}, a parcela {parcela} está com {dias} dias de atraso (valor atualizado {valor_atual}). O fiador {fiador} também está sendo comunicado. Entre em contato para negociar.',
   },
+  {
+    // Depois do D+7 a cobrança não para: repete a cada 7 dias (D+14, D+21, D+28…) avisando também o fiador
+    code: 'ATRASO_SEMANAL',
+    offsetDays: 14,
+    notifyGuarantor: true,
+    body: '{nome}, a parcela {parcela} continua em aberto há {dias} dias. Valor atualizado: {valor_atual}. Podemos fazer um acordo — responda esta mensagem.',
+  },
 ];
+
+/** Código especial: repete toda semana a partir de offsetDays dias de atraso. */
+export const WEEKLY_CODE = 'ATRASO_SEMANAL';
 
 export const GUARANTOR_BODY =
   'Olá {fiador}. Você é fiador(a) de {nome}, que está com a parcela {parcela} em atraso há {dias} dias (valor atualizado {valor_atual}). Por favor, entre em contato.';
