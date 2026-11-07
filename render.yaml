@@ -1,0 +1,37 @@
+# Publicação no Render (https://render.com): New > Blueprint > escolha este repositório.
+# Cria o banco PostgreSQL e o serviço web (API + painel no mesmo endereço).
+databases:
+  - name: lendcontrol-db
+    plan: free
+    databaseName: lendcontrol
+    user: lend
+
+services:
+  - type: web
+    name: lendcontrol
+    runtime: node
+    plan: free
+    region: virginia
+    buildCommand: >-
+      cd web && npm ci && npm run build &&
+      cd ../backend && npm ci && npx prisma generate && npm run build
+    preDeployCommand: cd backend && npx prisma migrate deploy && npm run seed
+    startCommand: cd backend && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: lendcontrol-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: STORAGE_SIGNING_SECRET
+        generateValue: true
+      - key: STORAGE_DIR
+        value: ./storage/private
+      - key: BACKUP_DIR
+        value: ./storage/backups
+      - key: SEED_PASSWORD
+        sync: false # você digita a senha inicial dos usuários ao criar

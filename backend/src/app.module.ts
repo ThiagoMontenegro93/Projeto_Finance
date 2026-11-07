@@ -14,6 +14,7 @@ import { MessagesModule } from './messages/messages.module';
 import { PrismaModule } from './prisma/prisma.service';
 import { SettingsModule } from './settings/settings.module';
 import { WalletModule } from './wallet/wallet.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { WalletModule } from './wallet/wallet.module';
     DashboardModule,
     BackupModule,
   ],
+  controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AppModule {}

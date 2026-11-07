@@ -55,7 +55,7 @@ export async function api<T = any>(path: string, body?: unknown, method?: string
 }
 
 export async function login(srv: string, email: string, password: string) {
-  server = srv.replace(/\/+$/, '');
+  server = srv.trim().replace(/\/+$/, '').replace(/\/api$/i, ''); // aceita com ou sem /api no fim
   token = '';
   const r = await api<{ accessToken: string; user: Me }>('/auth/login', { email: email.trim().toLowerCase(), password });
   await saveSession(server, r.accessToken);
