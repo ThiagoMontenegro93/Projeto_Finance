@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Client" ALTER COLUMN "score" SET DEFAULT 7,
+ALTER COLUMN "scoreStatus" SET DEFAULT 'REGULAR';
