@@ -62,6 +62,16 @@ Tela **Exportar / Importar** (Dono):
 
 Fórmulas conferidas recalculando no LibreOffice (0 erros); funcionam no Excel 2019+/365 e no LibreOffice.
 
+## Publicar no Render (para testar no celular)
+
+1. Crie uma conta grátis em https://render.com entrando com o GitHub.
+2. Clique em **New > Blueprint**, escolha o repositório `Projeto_Finance` e o branch `main`.
+3. O Render lê o `render.yaml` e cria o banco e o serviço `lendcontrol`. Ele pede o `SEED_PASSWORD`: digite a senha inicial dos usuários admin@, dono@ e funcionario@lendcontrol.local.
+4. Clique em **Apply**. Em uns 5 minutos o sistema fica no ar em `https://lendcontrol.onrender.com` (ou o endereço que o Render mostrar).
+5. No celular, instale o **Expo Go**, rode `cd mobile && npx expo start` no PC e leia o QR code. Em **Servidor**, coloque o endereço do Render.
+
+Limites do plano grátis: o serviço dorme depois de 15 minutos parado (a primeira abertura demora ~1 minuto), então os horários automáticos (score 06:00, resumo 08:30, backup de segunda) só rodam se ele estiver acordado; os arquivos enviados e os backups em disco somem quando ele reinicia; e o banco grátis expira em 30 dias. Para uso real, troque para os planos pagos (Starter) e adicione um disco.
+
 ## Perfis
 
 - **Super Admin**: tudo, inclusive desbloquear cliente PERDA
@@ -91,4 +101,4 @@ npm install
 npx expo start          # abra no Expo Go lendo o QR code
 ```
 
-Na tela de entrada, informe em **Servidor** o endereço da API publicada (ex.: `https://seu-dominio.com/api`). O token fica guardado no armazenamento seguro do aparelho.
+Na tela de entrada, informe em **Servidor** o endereço do sistema publicado (ex.: `https://lendcontrol.onrender.com`; com ou sem `/api` no fim). O token fica guardado no armazenamento seguro do aparelho.
