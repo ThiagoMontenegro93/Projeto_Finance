@@ -74,3 +74,21 @@ Fórmulas conferidas recalculando no LibreOffice (0 erros); funcionam no Excel 2
 - SMTP para o e-mail do backup e Evolution API para o WhatsApp automático.
 - A biometria usa WebAuthn do navegador para confirmar o aprovador no aparelho; o servidor registra a confirmação. Para validar a assinatura no servidor, plugue `@simplewebauthn/server` no endpoint de aprovação.
 - Documentos ficam em disco (`STORAGE_DIR`); para nuvem, troque o `StorageService` por S3/R2 mantendo os métodos.
+
+## App celular (Expo) — `mobile/`
+
+App para o dia a dia no celular (Android e iPhone), usando a mesma API:
+
+- **Hoje**: resumo do painel, fila de cobrança do dia com botão de WhatsApp e lista de atrasados.
+- **Clientes**: busca, ficha resumida, WhatsApp/ligação para o cliente e o fiador, empréstimos.
+- **Empréstimo**: parcelas e ações Receber / Só juros / Quitar tudo (as duas últimas vão para aprovação).
+- **Aprovações** (Dono): aprova com a digital/Face ID do aparelho; sem biometria, pede a senha.
+- **Carteira**: capital, comissão, saldo a repassar e botão "Repassar ao Dono".
+
+```bash
+cd mobile
+npm install
+npx expo start          # abra no Expo Go lendo o QR code
+```
+
+Na tela de entrada, informe em **Servidor** o endereço da API publicada (ex.: `https://seu-dominio.com/api`). O token fica guardado no armazenamento seguro do aparelho.
