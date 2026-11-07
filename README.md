@@ -66,7 +66,9 @@ Fórmulas conferidas recalculando no LibreOffice (0 erros); funcionam no Excel 2
 
 1. Crie uma conta grátis em https://render.com entrando com o GitHub.
 2. Clique em **New > Blueprint**, escolha o repositório `Projeto_Finance` e o branch `main`.
-3. O Render lê o `render.yaml` e cria o banco e o serviço `lendcontrol`. Ele pede o `SEED_PASSWORD`: digite a senha inicial dos usuários admin@, dono@ e funcionario@lendcontrol.local.
+3. O Render lê o `render.yaml` e cria o serviço `lendcontrol`. Ele pede:
+   - `DATABASE_URL`: o endereço do seu PostgreSQL (no Render: banco > Connect > Internal Database URL) com `?schema=lendcontrol` no fim. O LendControl fica numa área própria e não mexe no que já existe no banco.
+   - `SEED_PASSWORD`: a senha inicial dos usuários admin@, dono@ e funcionario@lendcontrol.local.
 4. Clique em **Apply**. Em uns 5 minutos o sistema fica no ar em `https://lendcontrol.onrender.com` (ou o endereço que o Render mostrar).
 5. No celular, instale o **Expo Go**, rode `cd mobile && npx expo start` no PC e leia o QR code. Em **Servidor**, coloque o endereço do Render.
 

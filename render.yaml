@@ -1,11 +1,6 @@
 # Publicação no Render (https://render.com): New > Blueprint > escolha este repositório.
-# Cria o banco PostgreSQL e o serviço web (API + painel no mesmo endereço).
-databases:
-  - name: lendcontrol-db
-    plan: free
-    databaseName: lendcontrol
-    user: lend
-
+# Cria o serviço web (API + painel no mesmo endereço) usando um PostgreSQL que você já tem
+# (o plano grátis do Render só permite um banco por conta).
 services:
   - type: web
     name: lendcontrol
@@ -22,9 +17,7 @@ services:
       - key: NODE_VERSION
         value: "22"
       - key: DATABASE_URL
-        fromDatabase:
-          name: lendcontrol-db
-          property: connectionString
+        sync: false # cole o endereço do seu PostgreSQL e acrescente ?schema=lendcontrol no fim
       - key: JWT_SECRET
         generateValue: true
       - key: STORAGE_SIGNING_SECRET
